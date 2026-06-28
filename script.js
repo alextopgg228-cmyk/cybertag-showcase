@@ -2,6 +2,15 @@ const rootPath = document.body.dataset.root || "";
 const asset = (path) => `${rootPath}${path}`;
 const currency = new Intl.NumberFormat("ru-RU");
 let currentUser = null;
+let apiAvailable = true;
+
+const demoUser = {
+  id: "demo-manager",
+  username: "manager",
+  name: "Менеджер CYBERTAG",
+  email: "manager@cybertag.local",
+  role: "manager"
+};
 
 const apiUrl = (endpoint) => new URL(`${rootPath}api${endpoint}`, window.location.href).toString();
 
@@ -195,7 +204,17 @@ const renderPartners = () => {
 const renderEquipment = () => {
   const root = document.querySelector("[data-equipment]");
   if (!root) return;
-  root.innerHTML = equipment.map((item) => `
+  const query = new URLSearchParams(location.search).get("q")?.trim().toLocaleLowerCase("ru") || "";
+  const filtered = query
+    ? equipment.filter((item) => JSON.stringify(item).toLocaleLowerCase("ru").includes(query))
+    : equipment;
+  const status = document.querySelector("[data-search-result]");
+  if (status) {
+    status.textContent = query
+      ? `По запросу «${query}» найдено: ${filtered.length}`
+      : "";
+  }
+  root.innerHTML = filtered.map((item) => `
     <article class="equipment-card">
       <img src="${asset(item.image)}" alt="${item.title}" loading="lazy">
       <div class="card-body">
@@ -205,13 +224,19 @@ const renderEquipment = () => {
         <ul>${item.details.map((detail) => `<li>${detail}</li>`).join("")}</ul>
       </div>
     </article>
-  `).join("");
+  `).join("") || `<div class="catalog-empty"><h3>Ничего не найдено</h3><p>Попробуйте запрос «бластер», «жилет» или «радиобаза».</p></div>`;
 };
 
 const renderBundles = () => {
   const root = document.querySelector("[data-bundles]");
   if (!root) return;
-  root.innerHTML = bundles.map((bundle) => `
+  const query = new URLSearchParams(location.search).get("q")?.trim().toLocaleLowerCase("ru") || "";
+  const genericQuery = /^(комплект|комплекты|набор|наборы)$/.test(query);
+  const filtered = query && !genericQuery
+    ? bundles.filter((bundle) => [bundle.title, bundle.badge, bundle.players, bundle.area]
+      .join(" ").toLocaleLowerCase("ru").includes(query))
+    : bundles;
+  root.innerHTML = filtered.map((bundle) => `
     <article class="bundle-card${bundle.hit ? " hit" : ""}">
       <div class="bundle-image">
         <img src="${asset(bundle.image)}" alt="${bundle.title}" loading="lazy">
@@ -225,6 +250,24 @@ const renderBundles = () => {
         </dl>
         <ul>${bundle.details.map((detail) => `<li>${detail}</li>`).join("")}</ul>
         <div class="price-row"><span class="old-price">${formatPrice(bundle.oldPrice)}</span><span class="new-price">${formatPrice(bundle.price)}</span></div>
+        <button class="button primary" type="button" data-add-bundle="${bundle.title}">В корзину</button>
+      </div>
+    </article>
+  `).join("") || `<div class="catalog-empty"><h3>Комплект не найден</h3><p>Откройте полный список готовых конфигураций.</p></div>`;
+};
+
+const renderFeaturedBundles = () => {
+  const root = document.querySelector("[data-featured-bundles]");
+  if (!root) return;
+  root.innerHTML = bundles.slice(0, 4).map((bundle) => `
+    <article class="featured-card">
+      <span class="featured-badge">${bundle.badge}</span>
+      <a href="${asset("bundles/")}" class="featured-image"><img src="${asset(bundle.image)}" alt="Комплект ${bundle.title}" loading="lazy"></a>
+      <div class="featured-card-body">
+        <small>${bundle.players} игроков · ${bundle.area}</small>
+        <h3>${bundle.title}</h3>
+        <div class="featured-rating"><span>Профессиональная серия</span><span>Готовое решение</span></div>
+        <div class="featured-price"><s>${formatPrice(bundle.oldPrice)}</s><strong>${formatPrice(bundle.price)}</strong></div>
         <button class="button primary" type="button" data-add-bundle="${bundle.title}">В корзину</button>
       </div>
     </article>
@@ -272,9 +315,11 @@ const getRequests = () => storage.get("cybertag-requests", []);
 const refreshCurrentUser = async () => {
   try {
     const result = await requestApi("/auth/me");
+    apiAvailable = true;
     currentUser = result.user;
   } catch {
-    currentUser = null;
+    apiAvailable = false;
+    currentUser = storage.get("cybertag-demo-user", null);
   }
 };
 
@@ -344,6 +389,17 @@ const addBundleToCart = (title) => {
   const bundle = bundles.find((item) => item.title === title);
   if (!bundle) return;
   setCart([...getCart(), { title: bundle.title, price: bundle.price }]);
+  let toast = document.querySelector("[data-cart-toast]");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "cart-toast";
+    toast.dataset.cartToast = "";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = `${bundle.title} добавлен в корзину`;
+  toast.classList.add("visible");
+  window.clearTimeout(addBundleToCart.toastTimer);
+  addBundleToCart.toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 2200);
 };
 
 const checkout = () => {
@@ -384,7 +440,8 @@ const renderDashboard = () => {
   const userName = document.querySelector("[data-user-name]");
 
   loginLinks.forEach((link) => {
-    link.textContent = user ? user.username : "Войти";
+    const label = link.querySelector("b") || link;
+    label.textContent = user ? user.username : "Войти";
     link.href = user ? `${rootPath}kontakty/` : `${rootPath}login/`;
   });
   if (dashboard) dashboard.hidden = !user;
@@ -408,6 +465,13 @@ const setupMenu = () => {
     const url = new URL(link.getAttribute("href"), location.href);
     if (url.pathname.replace(/\/index\.html$/, "/") === current) link.classList.add("active");
   });
+
+  const catalogTrigger = document.querySelector("[data-catalog-trigger]");
+  if (catalogTrigger) {
+    catalogTrigger.addEventListener("click", () => {
+      window.location.href = `${rootPath}katalog/`;
+    });
+  }
 };
 
 const setupCart = () => {
@@ -485,6 +549,26 @@ const setFormBusy = (form, busy) => {
   });
 };
 
+const setupSearch = () => {
+  const query = new URLSearchParams(location.search).get("q") || "";
+  document.querySelectorAll("[data-site-search]").forEach((form) => {
+    const input = form.elements.q;
+    if (input && query) input.value = query;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = String(new FormData(form).get("q") || "").trim();
+      if (!value) return;
+      const normalized = value.toLocaleLowerCase("ru");
+      const destination = /комплект|набор|start|optima|smart|pro|elite/.test(normalized)
+        ? "bundles/"
+        : /софт|программ|windows|сценари/.test(normalized)
+          ? "soft/"
+          : "katalog/";
+      window.location.href = `${rootPath}${destination}?q=${encodeURIComponent(value)}`;
+    });
+  });
+};
+
 const setupAuth = () => {
   const form = document.querySelector("[data-login-page-form]");
   const error = document.querySelector("[data-login-error]");
@@ -492,14 +576,26 @@ const setupAuth = () => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = new FormData(form);
+      const identity = String(data.get("identity")).trim();
+      const password = String(data.get("password"));
       if (error) error.textContent = "";
       setFormBusy(form, true);
       try {
+        if (!apiAvailable) {
+          const validDemo = [demoUser.username, demoUser.email].includes(identity.toLocaleLowerCase("ru"))
+            && password === "cybertag2026";
+          if (!validDemo) throw new Error("Неверный логин или пароль. Используйте демо-доступ, указанный в форме.");
+          currentUser = demoUser;
+          storage.set("cybertag-demo-user", demoUser);
+          form.reset();
+          redirectAfterAuth();
+          return;
+        }
         const result = await requestApi("/auth/login", {
           method: "POST",
           body: JSON.stringify({
-            identity: String(data.get("identity")).trim(),
-            password: String(data.get("password"))
+            identity,
+            password
           })
         });
         currentUser = result.user;
@@ -523,6 +619,11 @@ const setupAuth = () => {
       if (registerError) registerError.textContent = "";
       if (password !== String(data.get("passwordConfirm"))) {
         if (registerError) registerError.textContent = "Пароли не совпадают.";
+        return;
+      }
+
+      if (!apiAvailable) {
+        if (registerError) registerError.textContent = "Регистрация доступна при серверном запуске. Для опубликованной версии используйте демо-вход manager.";
         return;
       }
 
@@ -551,9 +652,10 @@ const setupAuth = () => {
   document.querySelectorAll("[data-logout]").forEach((button) => {
     button.addEventListener("click", async () => {
       try {
-        await requestApi("/auth/logout", { method: "POST" });
+        if (apiAvailable) await requestApi("/auth/logout", { method: "POST" });
       } finally {
         currentUser = null;
+        storage.remove("cybertag-demo-user");
       }
       renderDashboard();
     });
@@ -564,9 +666,11 @@ const init = async () => {
   renderPartners();
   renderEquipment();
   renderBundles();
+  renderFeaturedBundles();
   renderOffers();
   renderContacts();
   setupMenu();
+  setupSearch();
   setupCart();
   await refreshCurrentUser();
   setupFeedback();

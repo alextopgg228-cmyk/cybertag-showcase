@@ -6,15 +6,31 @@
     <title>Корзина CYBERTAG</title>
     <meta name="description" content="Корзина выбранных комплектов оборудования CYBERTAG.">
     <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles.css?v=20260628-1">
+    <link rel="stylesheet" href="../styles.css?v=20260629-1">
   </head>
   <body data-root="../">
     <header class="site-header">
-      <div class="header-top">
-        <a class="brand" href="../" aria-label="CYBERTAG — главная"><img src="../assets/top_logotype.svg" alt="CYBERTAG"><span class="brand-copy">Оборудование для аренного лазертага<small>Смоленск · Россия</small></span></a>
-        <div class="header-tools"><a href="../kontakty/">Отдел продаж</a><a class="header-login" href="../login/" data-login-link>Войти</a><button class="menu-toggle" type="button" aria-label="Открыть меню" data-menu-toggle><span></span><span></span><span></span></button></div>
+      <div class="utility-bar">
+        <div class="utility-inner">
+          <div><a href="../bundles/">Готовые арены</a><a href="../kontakty/">Партнёрам</a><a href="../soft/">Сервис и поддержка</a></div>
+          <div><span>Смоленск</span><a href="tel:+79002255552">+7 (900) 225-55-52</a></div>
+        </div>
       </div>
-      <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a><a class="nav-cart" href="../korzina/">Корзина <span data-cart-badge>0</span></a></nav>
+      <div class="header-top">
+        <a class="brand" href="../" aria-label="CYBERTAG — главная"><img src="../assets/top_logotype.svg" alt="CYBERTAG"></a>
+        <button class="catalog-trigger" type="button" data-catalog-trigger aria-label="Открыть каталог"><span class="catalog-dots" aria-hidden="true">••<br>••</span>Каталог</button>
+        <form class="site-search" role="search" data-site-search>
+          <label class="sr-only" for="site-search-korzina">Поиск по CYBERTAG</label>
+          <input id="site-search-korzina" name="q" type="search" placeholder="Поиск оборудования и комплектов" autocomplete="off">
+          <button type="submit" aria-label="Найти">⌕</button>
+        </form>
+        <div class="header-actions">
+          <a class="header-login" href="../login/" data-login-link><span aria-hidden="true">●</span><b>Войти</b></a>
+          <a class="header-cart" href="../korzina/"><span aria-hidden="true">▱</span><b>Корзина</b><em data-cart-badge>0</em></a>
+          <button class="menu-toggle" type="button" aria-label="Открыть меню" data-menu-toggle><span></span><span></span><span></span></button>
+        </div>
+      </div>
+      <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a></nav>
     </header>
 
     <main>
@@ -70,6 +86,6 @@
       </div>
     </footer>
 
-    <script src="../script.js?v=20260628-1"></script>
+    <script src="../script.js?v=20260629-1"></script>
   </body>
 </html>
