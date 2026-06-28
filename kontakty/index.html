@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Контакты CYBERTAG</title>
+    <meta name="description" content="Контакты отдела продаж CYBERTAG и форма обратной связи.">
+    <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles.css?v=20260627-4">
+  </head>
+  <body data-root="../">
+    <header class="site-header">
+      <div class="header-top">
+        <a class="brand" href="../" aria-label="CYBERTAG — главная"><img src="../assets/top_logotype.svg" alt="CYBERTAG"><span class="brand-copy">Оборудование для аренного лазертага<small>Смоленск · Россия</small></span></a>
+        <div class="header-tools"><a href="../kontakty/">Отдел продаж</a><a class="header-login" href="../login/" data-login-link>Войти</a><button class="menu-toggle" type="button" aria-label="Открыть меню" data-menu-toggle><span></span><span></span><span></span></button></div>
+      </div>
+      <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a><a class="nav-cart" href="../korzina/">Корзина <span data-cart-badge>0</span></a></nav>
+    </header>
+
+    <main>
+      <section class="page-hero">
+        <div class="section-inner">
+          <p class="eyebrow">Отдел продаж</p>
+          <h1>Контакты CYBERTAG</h1>
+          <p class="page-lead">Российская Федерация, г. Смоленск, ул. Попова, 40/2</p>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-inner">
+          <div class="contact-grid" data-contacts></div>
+
+          <div class="contact-form-wrap" id="feedback">
+            <form class="contact-form" data-feedback-form>
+              <h3>Форма обратной связи</h3>
+              <label><span>Email</span><input type="email" name="email" autocomplete="email" required></label>
+              <label><span>Имя</span><input type="text" name="name" autocomplete="name" required></label>
+              <label><span>Сообщение</span><textarea name="message" rows="5" required></textarea></label>
+              <label class="checkbox-line"><input type="checkbox" required><span>Согласен с условиями политики конфиденциальности</span></label>
+              <button class="button primary" type="submit">Отправить</button>
+              <p class="form-status" data-feedback-status role="status"></p>
+            </form>
+
+            <aside class="login-dashboard" data-dashboard hidden>
+              <h3>Кабинет менеджера</h3>
+              <div class="dashboard-line"><span>Пользователь</span><strong data-user-name>manager</strong></div>
+              <div class="dashboard-line"><span>Заявки</span><strong data-request-count>0</strong></div>
+              <div class="dashboard-line"><span>Корзина</span><strong data-dashboard-cart>0 ₽</strong></div>
+              <button class="button secondary compact" type="button" data-logout>Выйти</button>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <img src="../assets/top_logotype.svg" alt="CYBERTAG">
+        <p>© 2026 ООО «Кибертаг»</p>
+        <div class="social-links">
+          <a href="https://vk.com/cybertag" target="_blank" rel="noreferrer" aria-label="CYBERTAG ВКонтакте"><img src="../assets/social-vk.svg" alt=""></a>
+          <a href="https://www.youtube.com/channel/UCeqk4XzY4pF8dvOVTSGVkKw" target="_blank" rel="noreferrer" aria-label="CYBERTAG YouTube"><img src="../assets/social-yt.svg" alt=""></a>
+          <a href="https://www.facebook.com/CYBERTAG" target="_blank" rel="noreferrer" aria-label="CYBERTAG Facebook"><img src="../assets/social-facebook.svg" alt=""></a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="../script.js?v=20260627-4"></script>
+  </body>
+</html>
