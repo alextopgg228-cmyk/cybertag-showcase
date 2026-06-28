@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Оборудование CYBERTAG</title>
-    <meta name="description" content="Бластеры, жилеты, BASEX, энерджайзеры и радиобазы CYBERTAG.">
+    <title>Регистрация — CYBERTAG</title>
+    <meta name="description" content="Регистрация пользователя CYBERTAG.">
     <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles.css?v=20260628-1">
   </head>
@@ -17,28 +17,26 @@
       <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a><a class="nav-cart" href="../korzina/">Корзина <span data-cart-badge>0</span></a></nav>
     </header>
 
-    <main>
-      <section class="page-hero">
-        <div class="section-inner">
-          <p class="eyebrow">Каталог</p>
-          <h1>Создано специально для аренного лазертага</h1>
-          <p class="page-lead">Ключевые устройства CYBERTAG: безопасная экипировка для игроков, интерактивные объекты поля и радиосвязь для стабильной игры.</p>
-          <div class="button-row">
-            <a class="button primary" href="../bundles/">Купить набор</a>
-            <a class="button ghost" href="../kontakty/">Получить консультацию</a>
-          </div>
+    <main class="login-page">
+      <section class="login-layout">
+        <div class="login-intro">
+          <p class="eyebrow">Личный кабинет</p>
+          <h1>Регистрация пользователя</h1>
+          <p>Создайте аккаунт, чтобы оформлять выбранные комплекты и работать с заявками.</p>
+          <a href="../login/">← Уже есть аккаунт? Войти</a>
         </div>
-      </section>
-
-      <section class="section-band">
-        <div class="section-inner">
-          <div class="section-head">
-            <p class="eyebrow">Оборудование</p>
-            <h2>Бластеры, жилеты и устройства поля</h2>
-            <p>Данные перенесены из каталога: вес, назначение и основные особенности каждого устройства.</p>
-          </div>
-          <div class="equipment-grid" data-equipment></div>
-        </div>
+        <form class="login-page-form" data-register-form>
+          <img src="../assets/top_logotype.svg" alt="CYBERTAG">
+          <h2>Регистрация</h2>
+          <label><span>Имя</span><input type="text" name="fullName" autocomplete="name" minlength="2" maxlength="100" required></label>
+          <label><span>Логин</span><input type="text" name="username" autocomplete="username" minlength="3" maxlength="32" required></label>
+          <label><span>Email</span><input type="email" name="email" autocomplete="email" maxlength="254" required></label>
+          <label><span>Пароль</span><input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+          <label><span>Повторите пароль</span><input type="password" name="passwordConfirm" autocomplete="new-password" minlength="8" maxlength="128" required></label>
+          <p class="login-error" data-register-error role="alert"></p>
+          <button class="button primary" type="submit">Зарегистрироваться</button>
+          <p class="auth-switch">Уже зарегистрированы? <a href="../login/">Войти</a></p>
+        </form>
       </section>
     </main>
 
@@ -49,11 +47,9 @@
         <div class="social-links">
           <a href="https://vk.com/cybertag" target="_blank" rel="noreferrer" aria-label="CYBERTAG ВКонтакте"><img src="../assets/social-vk.svg" alt=""></a>
           <a href="https://www.youtube.com/channel/UCeqk4XzY4pF8dvOVTSGVkKw" target="_blank" rel="noreferrer" aria-label="CYBERTAG YouTube"><img src="../assets/social-yt.svg" alt=""></a>
-          <a href="https://www.facebook.com/CYBERTAG" target="_blank" rel="noreferrer" aria-label="CYBERTAG Facebook"><img src="../assets/social-facebook.svg" alt=""></a>
         </div>
       </div>
     </footer>
-
     <script src="../script.js?v=20260628-1"></script>
   </body>
 </html>

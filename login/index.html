@@ -6,7 +6,7 @@
     <title>Вход — CYBERTAG</title>
     <meta name="description" content="Вход пользователя CYBERTAG для оформления заказа.">
     <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles.css?v=20260627-4">
+    <link rel="stylesheet" href="../styles.css?v=20260628-1">
   </head>
   <body data-root="../">
     <header class="site-header">
@@ -22,16 +22,17 @@
         <div class="login-intro">
           <p class="eyebrow">Личный кабинет</p>
           <h1>Вход пользователя</h1>
-          <p>Авторизуйтесь, чтобы перейти к оформлению выбранных комплектов и кабинету менеджера.</p>
+          <p>Авторизуйтесь, чтобы перейти к оформлению выбранных комплектов и личному кабинету.</p>
           <a href="../korzina/">← Вернуться в корзину</a>
         </div>
         <form class="login-page-form" data-login-page-form>
           <img src="../assets/top_logotype.svg" alt="CYBERTAG">
           <h2>Авторизация</h2>
-          <label><span>Пользователь</span><input type="text" name="username" autocomplete="username" required></label>
+          <label><span>Логин или email</span><input type="text" name="identity" autocomplete="username" required></label>
           <label><span>Пароль</span><input type="password" name="password" autocomplete="current-password" required></label>
           <p class="login-error" data-login-error role="alert"></p>
           <button class="button primary" type="submit">Войти</button>
+          <p class="auth-switch">Нет аккаунта? <a href="../register/">Зарегистрироваться</a></p>
         </form>
       </section>
     </main>
@@ -46,6 +47,6 @@
         </div>
       </div>
     </footer>
-    <script src="../script.js?v=20260627-4"></script>
+    <script src="../script.js?v=20260628-1"></script>
   </body>
 </html>

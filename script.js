@@ -1,11 +1,26 @@
 const rootPath = document.body.dataset.root || "";
 const asset = (path) => `${rootPath}${path}`;
 const currency = new Intl.NumberFormat("ru-RU");
+let currentUser = null;
 
-const credentials = {
-  username: "manager",
-  password: "cybertag2026",
-  name: "Менеджер CYBERTAG"
+const apiUrl = (endpoint) => new URL(`${rootPath}api${endpoint}`, window.location.href).toString();
+
+const requestApi = async (endpoint, options = {}) => {
+  const response = await fetch(apiUrl(endpoint), {
+    credentials: "same-origin",
+    ...options,
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {})
+    }
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const body = contentType.includes("application/json") ? await response.json() : null;
+  if (!response.ok) {
+    throw new Error(body?.error || "Сервер авторизации недоступен.");
+  }
+  return body;
 };
 
 const partners = [
@@ -251,8 +266,17 @@ const renderContacts = () => {
 };
 
 const getCart = () => storage.get("cybertag-cart", []);
-const getUser = () => storage.get("cybertag-user", null);
+const getUser = () => currentUser;
 const getRequests = () => storage.get("cybertag-requests", []);
+
+const refreshCurrentUser = async () => {
+  try {
+    const result = await requestApi("/auth/me");
+    currentUser = result.user;
+  } catch {
+    currentUser = null;
+  }
+};
 
 const setCart = (cart) => {
   storage.set("cybertag-cart", cart);
@@ -448,38 +472,95 @@ const setupFeedback = () => {
   }
 };
 
-const setupLogin = () => {
+const redirectAfterAuth = () => {
+  const next = new URLSearchParams(location.search).get("next");
+  window.location.href = next === "checkout"
+    ? `${rootPath}kontakty/?checkout=1#feedback`
+    : `${rootPath}kontakty/`;
+};
+
+const setFormBusy = (form, busy) => {
+  form.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = busy;
+  });
+};
+
+const setupAuth = () => {
   const form = document.querySelector("[data-login-page-form]");
   const error = document.querySelector("[data-login-error]");
   if (form) {
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = new FormData(form);
-      const username = String(data.get("username")).trim();
-      const password = String(data.get("password"));
-
-      if (username === credentials.username && password === credentials.password) {
-        storage.set("cybertag-user", { username: credentials.username, name: credentials.name });
+      if (error) error.textContent = "";
+      setFormBusy(form, true);
+      try {
+        const result = await requestApi("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            identity: String(data.get("identity")).trim(),
+            password: String(data.get("password"))
+          })
+        });
+        currentUser = result.user;
         form.reset();
-        const next = new URLSearchParams(location.search).get("next");
-        window.location.href = next === "checkout"
-          ? `${rootPath}kontakty/?checkout=1#feedback`
-          : `${rootPath}kontakty/`;
-      } else if (error) {
-        error.textContent = "Неверный пользователь или пароль.";
+        redirectAfterAuth();
+      } catch (requestError) {
+        if (error) error.textContent = requestError.message;
+      } finally {
+        setFormBusy(form, false);
+      }
+    });
+  }
+
+  const registerForm = document.querySelector("[data-register-form]");
+  const registerError = document.querySelector("[data-register-error]");
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData(registerForm);
+      const password = String(data.get("password"));
+      if (registerError) registerError.textContent = "";
+      if (password !== String(data.get("passwordConfirm"))) {
+        if (registerError) registerError.textContent = "Пароли не совпадают.";
+        return;
+      }
+
+      setFormBusy(registerForm, true);
+      try {
+        const result = await requestApi("/auth/register", {
+          method: "POST",
+          body: JSON.stringify({
+            fullName: String(data.get("fullName")).trim(),
+            username: String(data.get("username")).trim(),
+            email: String(data.get("email")).trim(),
+            password
+          })
+        });
+        currentUser = result.user;
+        registerForm.reset();
+        redirectAfterAuth();
+      } catch (requestError) {
+        if (registerError) registerError.textContent = requestError.message;
+      } finally {
+        setFormBusy(registerForm, false);
       }
     });
   }
 
   document.querySelectorAll("[data-logout]").forEach((button) => {
-    button.addEventListener("click", () => {
-      storage.remove("cybertag-user");
+    button.addEventListener("click", async () => {
+      try {
+        await requestApi("/auth/logout", { method: "POST" });
+      } finally {
+        currentUser = null;
+      }
       renderDashboard();
     });
   });
 };
 
-const init = () => {
+const init = async () => {
   renderPartners();
   renderEquipment();
   renderBundles();
@@ -487,9 +568,10 @@ const init = () => {
   renderContacts();
   setupMenu();
   setupCart();
+  await refreshCurrentUser();
   setupFeedback();
-  setupLogin();
+  setupAuth();
   renderDashboard();
 };
 
-init();
+init().catch((error) => console.error(error));

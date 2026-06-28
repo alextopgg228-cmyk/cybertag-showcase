@@ -1,0 +1,44 @@
+{
+  "name": "cybertag-showcase",
+  "version": "1.0.0",
+  "description": "Многостраничный сайт CYBERTAG с регистрацией и входом через Microsoft SQL Server.",
+  "main": "server.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/init-db.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alextopgg228-cmyk/cybertag-showcase.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bugs": {
+    "url": "https://github.com/alextopgg228-cmyk/cybertag-showcase/issues"
+  },
+  "homepage": "https://github.com/alextopgg228-cmyk/cybertag-showcase#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "msnodesqlv8": "^5.2.1",
+    "mssql": "^12.6.0"
+  },
+  "devDependencies": {
+    "@xmldom/xmldom": "^0.9.10",
+    "pizzip": "^3.2.0"
+  }
+}
