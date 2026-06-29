@@ -4,8 +4,138 @@ const currency = new Intl.NumberFormat("ru-RU");
 let currentUser = null;
 
 const apiUrl = (endpoint) => new URL(`${rootPath}api${endpoint}`, window.location.href).toString();
+const demoUsersKey = "cybertag-demo-auth-users";
+const demoCurrentUserKey = "cybertag-demo-auth-current";
+
+const isGithubPagesAuth = () => window.location.hostname.endsWith("github.io");
+
+const publicDemoUser = (user) => ({
+  id: user.id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  role: user.role
+});
+
+const demoPasswordHash = async (password) => {
+  if (window.crypto?.subtle) {
+    const bytes = new TextEncoder().encode(`cybertag-demo:${password}`);
+    const hash = await window.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  let hash = 0;
+  for (const char of String(password)) {
+    hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }
+  return String(hash);
+};
+
+const parseApiBody = (options) => {
+  try {
+    return JSON.parse(options.body || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const getDemoUsers = async () => {
+  const users = storage.get(demoUsersKey, []);
+  if (users.some((user) => user.username === "manager")) return users;
+
+  const seededUsers = [
+    ...users,
+    {
+      id: 1,
+      username: "manager",
+      name: "Менеджер CYBERTAG",
+      email: "manager@cybertag.local",
+      role: "admin",
+      passwordHash: await demoPasswordHash("cybertag2026")
+    }
+  ];
+  storage.set(demoUsersKey, seededUsers);
+  return seededUsers;
+};
+
+const demoAuth = async (endpoint, options = {}) => {
+  const method = String(options.method || "GET").toUpperCase();
+
+  if (endpoint === "/auth/me" && method === "GET") {
+    const users = await getDemoUsers();
+    const userId = storage.get(demoCurrentUserKey, null);
+    const user = users.find((candidate) => candidate.id === userId);
+    return { user: user ? publicDemoUser(user) : null };
+  }
+
+  if (endpoint === "/auth/logout" && method === "POST") {
+    storage.remove(demoCurrentUserKey);
+    return {};
+  }
+
+  if (endpoint === "/auth/login" && method === "POST") {
+    const body = parseApiBody(options);
+    const identity = String(body.identity || "").trim().toLowerCase();
+    const passwordHash = await demoPasswordHash(String(body.password || ""));
+    const users = await getDemoUsers();
+    const user = users.find((candidate) =>
+      candidate.username.toLowerCase() === identity || candidate.email.toLowerCase() === identity
+    );
+
+    if (!user || user.passwordHash !== passwordHash) {
+      throw new Error("Неверный логин, email или пароль.");
+    }
+
+    storage.set(demoCurrentUserKey, user.id);
+    return { user: publicDemoUser(user) };
+  }
+
+  if (endpoint === "/auth/register" && method === "POST") {
+    const body = parseApiBody(options);
+    const fullName = String(body.fullName || "").trim();
+    const username = String(body.username || "").trim();
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+
+    if (fullName.length < 2 || fullName.length > 100) {
+      throw new Error("Укажите имя длиной от 2 до 100 символов.");
+    }
+    if (!/^[A-Za-zА-Яа-яЁё0-9_.-]{3,32}$/.test(username)) {
+      throw new Error("Логин должен содержать от 3 до 32 букв, цифр, точек, дефисов или подчёркиваний.");
+    }
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Укажите корректный email.");
+    }
+    if (password.length < 8 || password.length > 128) {
+      throw new Error("Пароль должен содержать от 8 до 128 символов.");
+    }
+
+    const users = await getDemoUsers();
+    if (users.some((user) => user.username.toLowerCase() === username.toLowerCase() || user.email === email)) {
+      throw new Error("Пользователь с таким логином или email уже существует.");
+    }
+
+    const user = {
+      id: Math.max(0, ...users.map((candidate) => candidate.id)) + 1,
+      username,
+      name: fullName,
+      email,
+      role: "customer",
+      passwordHash: await demoPasswordHash(password)
+    };
+    storage.set(demoUsersKey, [...users, user]);
+    storage.set(demoCurrentUserKey, user.id);
+    return { user: publicDemoUser(user) };
+  }
+
+  throw new Error("Сервер авторизации недоступен.");
+};
 
 const requestApi = async (endpoint, options = {}) => {
+  if (isGithubPagesAuth() && endpoint.startsWith("/auth/")) {
+    return demoAuth(endpoint, options);
+  }
+
   const response = await fetch(apiUrl(endpoint), {
     credentials: "same-origin",
     ...options,
