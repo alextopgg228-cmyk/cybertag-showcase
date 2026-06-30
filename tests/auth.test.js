@@ -46,6 +46,10 @@ test("registration, orders and administrator workflow", async (t) => {
   }
   assert.equal(healthy, true, serverOutput);
 
+  const guestAdminPage = await fetch(`${baseUrl}/admin/`, { redirect: "manual" });
+  assert.equal(guestAdminPage.status, 302);
+  assert.equal(guestAdminPage.headers.get("location"), "/login/?next=admin");
+
   const identity = `test_${Date.now()}`;
   const email = `${identity}@example.test`;
   const password = "StrongPassword42!";
@@ -109,6 +113,13 @@ test("registration, orders and administrator workflow", async (t) => {
   });
   assert.equal(customerAdminResponse.status, 403);
 
+  const customerAdminPage = await fetch(`${baseUrl}/admin/`, {
+    headers: { Cookie: customerCookie },
+    redirect: "manual",
+  });
+  assert.equal(customerAdminPage.status, 302);
+  assert.equal(customerAdminPage.headers.get("location"), "/");
+
   const adminLoginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -116,6 +127,10 @@ test("registration, orders and administrator workflow", async (t) => {
   });
   assert.equal(adminLoginResponse.status, 200);
   const adminCookie = adminLoginResponse.headers.get("set-cookie").split(";", 1)[0];
+
+  const adminPageResponse = await fetch(`${baseUrl}/admin/`, { headers: { Cookie: adminCookie } });
+  assert.equal(adminPageResponse.status, 200);
+  assert.match(await adminPageResponse.text(), /Панель администратора/);
 
   const ordersResponse = await fetch(`${baseUrl}/api/admin/orders`, {
     headers: { Cookie: adminCookie },
@@ -146,9 +161,21 @@ test("registration, orders and administrator workflow", async (t) => {
     }),
   });
   assert.equal(promotionResponse.status, 201);
+  const createdPromotion = (await promotionResponse.json()).promotion;
 
   const promotionsResponse = await fetch(`${baseUrl}/api/promotions`);
   assert.equal(promotionsResponse.status, 200);
   const promotions = (await promotionsResponse.json()).promotions;
   assert.ok(promotions.some((promotion) => promotion.title === promotionTitle));
+
+  const deletePromotionResponse = await fetch(`${baseUrl}/api/admin/promotions/${createdPromotion.id}`, {
+    method: "DELETE",
+    headers: { Cookie: adminCookie },
+  });
+  assert.equal(deletePromotionResponse.status, 200);
+  assert.equal((await deletePromotionResponse.json()).promotion.active, false);
+
+  const promotionsAfterDelete = await fetch(`${baseUrl}/api/promotions`);
+  const activePromotions = (await promotionsAfterDelete.json()).promotions;
+  assert.ok(!activePromotions.some((promotion) => promotion.id === createdPromotion.id));
 });

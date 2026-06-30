@@ -55,3 +55,6 @@ ORDER BY CreatedAt DESC, PromotionId DESC;
 -- 14. Добавление акции администратором
 INSERT INTO dbo.Promotions (Title, Description, DateLabel, ImageUrl, CreatedByUserId)
 VALUES (@Title, @Description, @DateLabel, @ImageUrl, @UserId);
+
+-- 15. Удаление акции из публикации
+UPDATE dbo.Promotions SET IsActive = 0 WHERE PromotionId = @PromotionId AND IsActive = 1;

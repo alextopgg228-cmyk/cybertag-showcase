@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ru">
   <head>
     <meta charset="utf-8">
@@ -6,7 +6,7 @@
     <title>Управление CYBERTAG</title>
     <meta name="description" content="Управление заказами и акциями CYBERTAG.">
     <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles.css?v=20260630-1">
+    <link rel="stylesheet" href="../styles.css?v=20260630-2">
   </head>
   <body data-root="../">
     <header class="site-header">
@@ -17,7 +17,7 @@
       <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a><a class="nav-cart" href="../korzina/">Корзина <span data-cart-badge>0</span></a></nav>
     </header>
 
-    <main>
+    <main data-admin-shell hidden>
       <section class="page-hero admin-hero">
         <div class="section-inner">
           <p class="eyebrow">Управление</p>
@@ -28,12 +28,6 @@
 
       <section class="section-band">
         <div class="section-inner">
-          <div class="admin-denied" data-admin-denied hidden>
-            <h2>Доступ запрещён</h2>
-            <p>Эта страница доступна только администратору.</p>
-            <a class="button primary" href="../">На главную</a>
-          </div>
-
           <div class="admin-workspace" data-admin-root hidden>
             <div class="admin-toolbar">
               <p data-admin-status role="status">Загрузка данных...</p>
@@ -99,6 +93,6 @@
       </div>
     </footer>
 
-    <script src="../script.js?v=20260630-1"></script>
+    <script src="../script.js?v=20260630-2"></script>
   </body>
 </html>

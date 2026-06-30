@@ -265,6 +265,19 @@ export const createPromotion = async ({ title, description, dateLabel, imageUrl,
   return mapPromotion(result.recordset[0]);
 };
 
+export const deactivatePromotion = async (promotionId) => {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("promotionId", sql.Int, promotionId)
+    .query(`
+      UPDATE dbo.Promotions
+      SET IsActive = 0
+      OUTPUT inserted.PromotionId
+      WHERE PromotionId = @promotionId AND IsActive = 1
+    `);
+  return result.recordset[0]?.PromotionId || null;
+};
+
 export const createOrderForUser = async ({ userId, items }) => {
   const groupedItems = new Map();
   for (const item of items) {

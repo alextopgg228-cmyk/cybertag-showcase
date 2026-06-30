@@ -237,6 +237,18 @@ const demoApi = async (endpoint, options = {}) => {
     return { promotion };
   }
 
+  const promotionDeleteMatch = endpoint.match(/^\/admin\/promotions\/(\d+)$/);
+  if (promotionDeleteMatch && method === "DELETE") {
+    await requireDemoAdmin();
+    const promotionId = Number(promotionDeleteMatch[1]);
+    const promotions = getDemoPromotions();
+    const promotion = promotions.find((candidate) => candidate.id === promotionId && candidate.active !== false);
+    if (!promotion) throw new Error("Акция не найдена.");
+    promotion.active = false;
+    storage.set(demoPromotionsKey, promotions);
+    return { promotion: { id: promotion.id, active: false } };
+  }
+
   throw new Error("Сервер авторизации недоступен.");
 };
 
@@ -817,8 +829,11 @@ const renderAdminPromotions = (promotions) => {
   root.innerHTML = promotions.length
     ? promotions.map((promotion) => `
       <li>
-        <strong>${escapeHtml(promotion.title)}</strong>
-        <span>${escapeHtml(promotion.date)}</span>
+        <div>
+          <strong>${escapeHtml(promotion.title)}</strong>
+          <span>${escapeHtml(promotion.date)}</span>
+        </div>
+        <button class="button danger compact" type="button" data-promotion-delete="${escapeHtml(promotion.id)}">Удалить</button>
       </li>
     `).join("")
     : "<li>Акций пока нет.</li>";
@@ -841,8 +856,8 @@ const loadAdminData = async () => {
 };
 
 const setupAdmin = async () => {
+  const shell = document.querySelector("[data-admin-shell]");
   const root = document.querySelector("[data-admin-root]");
-  const denied = document.querySelector("[data-admin-denied]");
   if (!root) return;
 
   if (!getUser()) {
@@ -850,10 +865,11 @@ const setupAdmin = async () => {
     return;
   }
   if (getUser().role !== "admin") {
-    if (denied) denied.hidden = false;
+    window.location.replace(`${rootPath}kontakty/`);
     return;
   }
 
+  if (shell) shell.hidden = false;
   root.hidden = false;
   const promotionForm = document.querySelector("[data-promotion-form]");
   const promotionStatus = document.querySelector("[data-promotion-status]");
@@ -907,6 +923,21 @@ const setupAdmin = async () => {
       if (status) status.textContent = error.message;
     } finally {
       select.disabled = false;
+    }
+  });
+
+  document.querySelector("[data-admin-promotions]")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-promotion-delete]");
+    if (!button) return;
+    if (!window.confirm("Удалить эту акцию?")) return;
+    button.disabled = true;
+    try {
+      await requestApi(`/admin/promotions/${button.dataset.promotionDelete}`, { method: "DELETE" });
+      await loadAdminData();
+    } catch (error) {
+      const status = document.querySelector("[data-admin-status]");
+      if (status) status.textContent = error.message;
+      button.disabled = false;
     }
   });
 

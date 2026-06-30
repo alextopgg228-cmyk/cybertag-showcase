@@ -11,6 +11,7 @@ import {
   createOrderForUser,
   createPromotion,
   createSession,
+  deactivatePromotion,
   deleteSession,
   findUserByIdentity,
   getDatabaseStats,
@@ -76,6 +77,17 @@ const requireAdmin = async (req, res, next) => {
     if (!user) return res.status(401).json({ error: "Требуется авторизация." });
     if (user.role !== "admin") return res.status(403).json({ error: "Недостаточно прав." });
     req.authUser = user;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const protectAdminPage = async (req, res, next) => {
+  try {
+    const user = await sessionUser(req);
+    if (!user) return res.redirect("/login/?next=admin");
+    if (user.role !== "admin") return res.redirect("/");
     return next();
   } catch (error) {
     return next(error);
@@ -264,6 +276,24 @@ export const createApp = async () => {
     } catch (error) {
       return next(error);
     }
+  });
+
+  app.delete("/api/admin/promotions/:promotionId", requireAdmin, async (req, res, next) => {
+    try {
+      const promotionId = Number(req.params.promotionId);
+      if (!Number.isInteger(promotionId) || promotionId < 1) {
+        return res.status(400).json({ error: "Некорректный номер акции." });
+      }
+      const deletedId = await deactivatePromotion(promotionId);
+      if (!deletedId) return res.status(404).json({ error: "Акция не найдена." });
+      return res.json({ promotion: { id: deletedId, active: false } });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.get(["/admin", "/admin/", "/admin/index.html"], protectAdminPage, (_req, res) => {
+    res.sendFile(path.join(rootDir, "admin", "index.html"));
   });
 
   app.use((req, res, next) => {

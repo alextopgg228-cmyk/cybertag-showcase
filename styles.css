@@ -1688,6 +1688,19 @@ textarea {
   text-align: center;
 }
 
+.button.danger {
+  color: #ff8c86;
+  background: rgba(255, 43, 31, 0.1);
+  border-color: rgba(255, 43, 31, 0.48);
+}
+
+.button.danger:hover,
+.button.danger:focus-visible {
+  color: var(--white);
+  background: var(--red-dark);
+  border-color: var(--red);
+}
+
 .admin-hero {
   min-height: 220px;
   padding: 42px 0;
@@ -1732,8 +1745,7 @@ textarea {
   align-items: start;
 }
 
-.admin-tool,
-.admin-denied {
+.admin-tool {
   padding: 24px;
   background: var(--card);
   border: 1px solid var(--line);
@@ -1749,8 +1761,7 @@ textarea {
   margin-bottom: 8px;
 }
 
-.admin-tool-head h2,
-.admin-denied h2 {
+.admin-tool-head h2 {
   margin: 0;
   font-size: 28px;
 }
@@ -1769,9 +1780,17 @@ textarea {
 
 .admin-promotion-list li {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
+  align-items: center;
   padding: 14px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.admin-promotion-list li > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .admin-promotion-list li:first-child {
@@ -1849,14 +1868,6 @@ textarea {
 .admin-empty {
   padding: 32px !important;
   text-align: center !important;
-}
-
-.admin-denied {
-  max-width: 620px;
-}
-
-.admin-denied p {
-  color: var(--muted);
 }
 
 @media (max-width: 1040px) {
@@ -2010,5 +2021,10 @@ textarea {
 
   .admin-hero h1 {
     font-size: 38px;
+  }
+
+  .admin-promotion-list li {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
