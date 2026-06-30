@@ -6,6 +6,15 @@ let currentUser = null;
 const apiUrl = (endpoint) => new URL(`${rootPath}api${endpoint}`, window.location.href).toString();
 const demoUsersKey = "cybertag-demo-auth-users";
 const demoCurrentUserKey = "cybertag-demo-auth-current";
+const demoOrdersKey = "cybertag-demo-orders";
+const demoPromotionsKey = "cybertag-demo-promotions";
+const orderStatusLabels = {
+  new: "Новый",
+  processing: "В работе",
+  shipped: "Отправлен",
+  done: "Завершён",
+  cancelled: "Отменён"
+};
 
 const isGithubPagesAuth = () => window.location.hostname.endsWith("github.io");
 
@@ -58,13 +67,37 @@ const getDemoUsers = async () => {
   return seededUsers;
 };
 
-const demoAuth = async (endpoint, options = {}) => {
+const getDemoCurrentUser = async () => {
+  const users = await getDemoUsers();
+  const userId = storage.get(demoCurrentUserKey, null);
+  return users.find((candidate) => candidate.id === userId) || null;
+};
+
+const requireDemoUser = async () => {
+  const user = await getDemoCurrentUser();
+  if (!user) throw new Error("Требуется авторизация.");
+  return user;
+};
+
+const requireDemoAdmin = async () => {
+  const user = await requireDemoUser();
+  if (user.role !== "admin") throw new Error("Недостаточно прав.");
+  return user;
+};
+
+const getDemoPromotions = () => {
+  const saved = storage.get(demoPromotionsKey, null);
+  if (Array.isArray(saved)) return saved;
+  const seeded = offers.map((offer, index) => ({ ...offer, id: index + 1, active: true }));
+  storage.set(demoPromotionsKey, seeded);
+  return seeded;
+};
+
+const demoApi = async (endpoint, options = {}) => {
   const method = String(options.method || "GET").toUpperCase();
 
   if (endpoint === "/auth/me" && method === "GET") {
-    const users = await getDemoUsers();
-    const userId = storage.get(demoCurrentUserKey, null);
-    const user = users.find((candidate) => candidate.id === userId);
+    const user = await getDemoCurrentUser();
     return { user: user ? publicDemoUser(user) : null };
   }
 
@@ -128,12 +161,88 @@ const demoAuth = async (endpoint, options = {}) => {
     return { user: publicDemoUser(user) };
   }
 
+  if (endpoint === "/promotions" && method === "GET") {
+    return { promotions: getDemoPromotions().filter((promotion) => promotion.active !== false) };
+  }
+
+  if (endpoint === "/orders" && method === "POST") {
+    const user = await requireDemoUser();
+    const body = parseApiBody(options);
+    const requestedItems = Array.isArray(body.items) ? body.items : [];
+    const grouped = new Map();
+    requestedItems.forEach((item) => {
+      const title = String(item?.title || "").trim();
+      const qty = Math.max(1, Math.min(20, Number(item?.qty) || 1));
+      if (title) grouped.set(title, Math.min(20, (grouped.get(title) || 0) + qty));
+    });
+    const items = Array.from(grouped, ([title, qty]) => {
+      const bundle = bundles.find((candidate) => candidate.title === title);
+      return bundle ? { title, qty, price: bundle.price } : null;
+    }).filter(Boolean);
+    if (!items.length || items.length !== grouped.size) {
+      throw new Error("Корзина не содержит допустимых товаров.");
+    }
+
+    const orders = storage.get(demoOrdersKey, []);
+    const order = {
+      id: Math.max(0, ...orders.map((candidate) => candidate.id)) + 1,
+      orderDate: new Date().toISOString(),
+      status: "new",
+      totalAmount: items.reduce((sum, item) => sum + item.price * item.qty, 0),
+      customerName: user.name,
+      customerEmail: user.email,
+      itemCount: items.reduce((sum, item) => sum + item.qty, 0),
+      items: items.map((item) => `${item.title} × ${item.qty}`).join(", ")
+    };
+    storage.set(demoOrdersKey, [order, ...orders]);
+    return { order };
+  }
+
+  if (endpoint === "/admin/orders" && method === "GET") {
+    await requireDemoAdmin();
+    return { orders: storage.get(demoOrdersKey, []) };
+  }
+
+  const statusMatch = endpoint.match(/^\/admin\/orders\/(\d+)\/status$/);
+  if (statusMatch && method === "PATCH") {
+    await requireDemoAdmin();
+    const body = parseApiBody(options);
+    if (!Object.hasOwn(orderStatusLabels, body.status)) throw new Error("Некорректный статус заказа.");
+    const orderId = Number(statusMatch[1]);
+    const orders = storage.get(demoOrdersKey, []);
+    const order = orders.find((candidate) => candidate.id === orderId);
+    if (!order) throw new Error("Заказ не найден.");
+    order.status = body.status;
+    storage.set(demoOrdersKey, orders);
+    return { order: { id: order.id, status: order.status } };
+  }
+
+  if (endpoint === "/admin/promotions" && method === "POST") {
+    await requireDemoAdmin();
+    const body = parseApiBody(options);
+    const promotions = getDemoPromotions();
+    const promotion = {
+      id: Math.max(0, ...promotions.map((candidate) => candidate.id)) + 1,
+      title: String(body.title || "").trim(),
+      text: String(body.description || "").trim(),
+      date: String(body.dateLabel || "").trim(),
+      image: String(body.imageUrl || "assets/offer-crm.jpg").trim(),
+      active: true,
+      createdAt: new Date().toISOString()
+    };
+    if (promotion.title.length < 3 || promotion.text.length < 10 || promotion.date.length < 2) {
+      throw new Error("Заполните название, описание и срок действия акции.");
+    }
+    storage.set(demoPromotionsKey, [promotion, ...promotions]);
+    return { promotion };
+  }
+
   throw new Error("Сервер авторизации недоступен.");
 };
 
 const requestApi = async (endpoint, options = {}) => {
-  if (isGithubPagesAuth() && endpoint.startsWith("/auth/")) {
-    return demoAuth(endpoint, options);
+  if (isGithubPagesAuth()) {
+    return demoApi(endpoint, options);
   }
 
   const response = await fetch(apiUrl(endpoint), {
@@ -311,6 +420,21 @@ const storage = {
 };
 
 const formatPrice = (value) => `${currency.format(value)} ₽`;
+const formatDate = (value) => new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "medium",
+  timeStyle: "short"
+}).format(new Date(value));
+const escapeHtml = (value) => String(value)
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+const promotionImage = (value) => {
+  const image = String(value || "");
+  if (/^https:\/\//i.test(image)) return image;
+  return asset(/^assets\/[A-Za-z0-9._/-]+$/.test(image) ? image : "assets/offer-crm.jpg");
+};
 
 const renderPartners = () => {
   const root = document.querySelector("[data-partners]");
@@ -361,16 +485,23 @@ const renderBundles = () => {
   `).join("");
 };
 
-const renderOffers = () => {
+const renderOffers = async () => {
   const root = document.querySelector("[data-offers]");
   if (!root) return;
-  root.innerHTML = offers.map((offer) => `
+  let promotions = offers;
+  try {
+    const result = await requestApi("/promotions");
+    if (Array.isArray(result.promotions)) promotions = result.promotions;
+  } catch {
+    promotions = offers;
+  }
+  root.innerHTML = promotions.map((offer, index) => `
     <article class="offer-card">
-      <img src="${asset(offer.image)}" alt="${offer.title}" loading="lazy">
+      <img src="${escapeHtml(promotionImage(offer.image))}" alt="${escapeHtml(offer.title)}" loading="lazy">
       <div class="card-body">
-        <div class="offer-date"><span>${offer.date}</span><span class="offer-code">ID ${offer.code}</span></div>
-        <h3>${offer.title}</h3>
-        <p>${offer.text}</p>
+        <div class="offer-date"><span>${escapeHtml(offer.date)}</span><span class="offer-code">ID ${escapeHtml(offer.id || offer.code || index + 1)}</span></div>
+        <h3>${escapeHtml(offer.title)}</h3>
+        <p>${escapeHtml(offer.text)}</p>
       </div>
     </article>
   `).join("");
@@ -418,6 +549,12 @@ const getCartMessage = () => {
   return cart.length
     ? `Хочу оформить заказ: ${cart.map((item) => item.title).join(", ")}.`
     : "Хочу оформить заказ.";
+};
+
+const getOrderItems = (cart) => {
+  const grouped = new Map();
+  cart.forEach((item) => grouped.set(item.title, (grouped.get(item.title) || 0) + 1));
+  return Array.from(grouped, ([title, qty]) => ({ title, qty }));
 };
 
 const renderCart = () => {
@@ -512,11 +649,15 @@ const renderDashboard = () => {
   const dashboard = document.querySelector("[data-dashboard]");
   const requestCount = document.querySelector("[data-request-count]");
   const userName = document.querySelector("[data-user-name]");
+  const adminLinks = document.querySelectorAll("[data-admin-link]");
 
   loginLinks.forEach((link) => {
     link.textContent = user ? user.username : "Войти";
-    link.href = user ? `${rootPath}kontakty/` : `${rootPath}login/`;
+    link.href = user
+      ? `${rootPath}${user.role === "admin" ? "admin/" : "kontakty/"}`
+      : `${rootPath}login/`;
   });
+  adminLinks.forEach((link) => { link.hidden = user?.role !== "admin"; });
   if (dashboard) dashboard.hidden = !user;
   if (userName && user) userName.textContent = user.name;
   if (requestCount) requestCount.textContent = String(getRequests().length);
@@ -568,25 +709,50 @@ const setupFeedback = () => {
   const status = document.querySelector("[data-feedback-status]");
   if (!form) return;
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(form);
-    const requests = getRequests();
-    requests.push({
-      email: data.get("email"),
-      name: data.get("name"),
-      message: data.get("message"),
-      cart: getCart(),
-      createdAt: new Date().toISOString()
-    });
-    storage.set("cybertag-requests", requests);
-    storage.remove("cybertag-checkout-pending");
-    form.reset();
+    const cart = getCart();
     if (status) {
-      status.textContent = "Заявка сохранена.";
-      status.classList.add("success");
+      status.textContent = "";
+      status.classList.remove("success");
     }
-    renderDashboard();
+    setFormBusy(form, true);
+
+    try {
+      let order = null;
+      if (cart.length) {
+        if (!getUser()) throw new Error("Для оформления заказа войдите в аккаунт.");
+        const result = await requestApi("/orders", {
+          method: "POST",
+          body: JSON.stringify({ items: getOrderItems(cart) })
+        });
+        order = result.order;
+      }
+
+      const requests = getRequests();
+      requests.push({
+        email: data.get("email"),
+        name: data.get("name"),
+        message: data.get("message"),
+        cart,
+        orderId: order?.id || null,
+        createdAt: new Date().toISOString()
+      });
+      storage.set("cybertag-requests", requests);
+      storage.remove("cybertag-checkout-pending");
+      if (order) setCart([]);
+      form.reset();
+      if (status) {
+        status.textContent = order ? `Заказ №${order.id} сохранён.` : "Заявка сохранена.";
+        status.classList.add("success");
+      }
+      renderDashboard();
+    } catch (requestError) {
+      if (status) status.textContent = requestError.message;
+    } finally {
+      setFormBusy(form, false);
+    }
   });
 
   if (location.hash === "#feedback") {
@@ -604,15 +770,148 @@ const setupFeedback = () => {
 
 const redirectAfterAuth = () => {
   const next = new URLSearchParams(location.search).get("next");
-  window.location.href = next === "checkout"
-    ? `${rootPath}kontakty/?checkout=1#feedback`
+  if (next === "checkout") {
+    window.location.href = `${rootPath}kontakty/?checkout=1#feedback`;
+    return;
+  }
+  window.location.href = currentUser?.role === "admin" || next === "admin"
+    ? `${rootPath}admin/`
     : `${rootPath}kontakty/`;
 };
 
 const setFormBusy = (form, busy) => {
-  form.querySelectorAll("input, button").forEach((control) => {
+  form.querySelectorAll("input, button, select, textarea").forEach((control) => {
     control.disabled = busy;
   });
+};
+
+const renderAdminOrders = (orders) => {
+  const root = document.querySelector("[data-admin-orders]");
+  if (!root) return;
+  if (!orders.length) {
+    root.innerHTML = '<tr><td colspan="6" class="admin-empty">Заказов пока нет.</td></tr>';
+    return;
+  }
+
+  root.innerHTML = orders.map((order) => `
+    <tr>
+      <td><strong>№${escapeHtml(order.id)}</strong><span>${escapeHtml(formatDate(order.orderDate))}</span></td>
+      <td><strong>${escapeHtml(order.customerName)}</strong><span>${escapeHtml(order.customerEmail)}</span></td>
+      <td>${escapeHtml(order.items || "—")}</td>
+      <td>${escapeHtml(order.itemCount)}</td>
+      <td><strong>${escapeHtml(formatPrice(order.totalAmount))}</strong></td>
+      <td>
+        <select data-order-status="${escapeHtml(order.id)}" data-previous-status="${escapeHtml(order.status)}" aria-label="Статус заказа №${escapeHtml(order.id)}">
+          ${Object.entries(orderStatusLabels).map(([value, label]) => `
+            <option value="${value}"${value === order.status ? " selected" : ""}>${label}</option>
+          `).join("")}
+        </select>
+      </td>
+    </tr>
+  `).join("");
+};
+
+const renderAdminPromotions = (promotions) => {
+  const root = document.querySelector("[data-admin-promotions]");
+  if (!root) return;
+  root.innerHTML = promotions.length
+    ? promotions.map((promotion) => `
+      <li>
+        <strong>${escapeHtml(promotion.title)}</strong>
+        <span>${escapeHtml(promotion.date)}</span>
+      </li>
+    `).join("")
+    : "<li>Акций пока нет.</li>";
+};
+
+const loadAdminData = async () => {
+  const status = document.querySelector("[data-admin-status]");
+  if (status) status.textContent = "Обновление данных...";
+  try {
+    const [ordersResult, promotionsResult] = await Promise.all([
+      requestApi("/admin/orders"),
+      requestApi("/promotions")
+    ]);
+    renderAdminOrders(ordersResult.orders || []);
+    renderAdminPromotions(promotionsResult.promotions || []);
+    if (status) status.textContent = `Заказов: ${(ordersResult.orders || []).length}`;
+  } catch (error) {
+    if (status) status.textContent = error.message;
+  }
+};
+
+const setupAdmin = async () => {
+  const root = document.querySelector("[data-admin-root]");
+  const denied = document.querySelector("[data-admin-denied]");
+  if (!root) return;
+
+  if (!getUser()) {
+    window.location.href = `${rootPath}login/?next=admin`;
+    return;
+  }
+  if (getUser().role !== "admin") {
+    if (denied) denied.hidden = false;
+    return;
+  }
+
+  root.hidden = false;
+  const promotionForm = document.querySelector("[data-promotion-form]");
+  const promotionStatus = document.querySelector("[data-promotion-status]");
+  const ordersTable = document.querySelector("[data-admin-orders-table]");
+
+  promotionForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(promotionForm);
+    if (promotionStatus) {
+      promotionStatus.textContent = "";
+      promotionStatus.classList.remove("success");
+    }
+    setFormBusy(promotionForm, true);
+    try {
+      const result = await requestApi("/admin/promotions", {
+        method: "POST",
+        body: JSON.stringify({
+          title: String(data.get("title")).trim(),
+          description: String(data.get("description")).trim(),
+          dateLabel: String(data.get("dateLabel")).trim(),
+          imageUrl: String(data.get("imageUrl")).trim()
+        })
+      });
+      promotionForm.reset();
+      if (promotionStatus) {
+        promotionStatus.textContent = `Акция «${result.promotion.title}» добавлена.`;
+        promotionStatus.classList.add("success");
+      }
+      await loadAdminData();
+    } catch (error) {
+      if (promotionStatus) promotionStatus.textContent = error.message;
+    } finally {
+      setFormBusy(promotionForm, false);
+    }
+  });
+
+  ordersTable?.addEventListener("change", async (event) => {
+    const select = event.target.closest("[data-order-status]");
+    if (!select) return;
+    const previousStatus = select.dataset.previousStatus;
+    select.disabled = true;
+    try {
+      await requestApi(`/admin/orders/${select.dataset.orderStatus}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: select.value })
+      });
+      select.dataset.previousStatus = select.value;
+    } catch (error) {
+      select.value = previousStatus;
+      const status = document.querySelector("[data-admin-status]");
+      if (status) status.textContent = error.message;
+    } finally {
+      select.disabled = false;
+    }
+  });
+
+  document.querySelector("[data-admin-refresh]")?.addEventListener("click", loadAdminData);
+  await loadAdminData();
 };
 
 const setupAuth = () => {
@@ -685,6 +984,10 @@ const setupAuth = () => {
       } finally {
         currentUser = null;
       }
+      if (document.querySelector("[data-admin-root]")) {
+        window.location.href = `${rootPath}login/?next=admin`;
+        return;
+      }
       renderDashboard();
     });
   });
@@ -694,7 +997,7 @@ const init = async () => {
   renderPartners();
   renderEquipment();
   renderBundles();
-  renderOffers();
+  await renderOffers();
   renderContacts();
   setupMenu();
   setupCart();
@@ -702,6 +1005,7 @@ const init = async () => {
   setupFeedback();
   setupAuth();
   renderDashboard();
+  await setupAdmin();
 };
 
 init().catch((error) => console.error(error));

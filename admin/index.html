@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Управление CYBERTAG</title>
+    <meta name="description" content="Управление заказами и акциями CYBERTAG.">
+    <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles.css?v=20260630-1">
+  </head>
+  <body data-root="../">
+    <header class="site-header">
+      <div class="header-top">
+        <a class="brand" href="../" aria-label="CYBERTAG — главная"><img src="../assets/top_logotype.svg" alt="CYBERTAG"><span class="brand-copy">Оборудование для аренного лазертага<small>Смоленск · Россия</small></span></a>
+        <div class="header-tools"><a href="../kontakty/">Отдел продаж</a><a class="header-login" href="../login/" data-login-link>Войти</a><button class="menu-toggle" type="button" aria-label="Открыть меню" data-menu-toggle><span></span><span></span><span></span></button></div>
+      </div>
+      <nav class="main-nav" data-nav><a href="../katalog/">Оборудование</a><a href="../bundles/">Комплекты</a><a href="../soft/">Софт</a><a href="../akcii/">Акции</a><a href="../kontakty/">Контакты</a><a class="nav-cart" href="../korzina/">Корзина <span data-cart-badge>0</span></a></nav>
+    </header>
+
+    <main>
+      <section class="page-hero admin-hero">
+        <div class="section-inner">
+          <p class="eyebrow">Управление</p>
+          <h1>Панель администратора</h1>
+          <p class="page-lead">Заказы клиентов и действующие предложения CYBERTAG.</p>
+        </div>
+      </section>
+
+      <section class="section-band">
+        <div class="section-inner">
+          <div class="admin-denied" data-admin-denied hidden>
+            <h2>Доступ запрещён</h2>
+            <p>Эта страница доступна только администратору.</p>
+            <a class="button primary" href="../">На главную</a>
+          </div>
+
+          <div class="admin-workspace" data-admin-root hidden>
+            <div class="admin-toolbar">
+              <p data-admin-status role="status">Загрузка данных...</p>
+              <div>
+                <button class="button secondary compact" type="button" data-admin-refresh>Обновить</button>
+                <button class="button secondary compact" type="button" data-logout>Выйти</button>
+              </div>
+            </div>
+
+            <div class="admin-grid">
+              <section class="admin-tool">
+                <div class="admin-tool-head">
+                  <p class="eyebrow">Новая запись</p>
+                  <h2>Добавить акцию</h2>
+                </div>
+                <form class="admin-form" data-promotion-form>
+                  <label><span>Название</span><input type="text" name="title" minlength="3" maxlength="160" required></label>
+                  <label><span>Срок действия</span><input type="text" name="dateLabel" maxlength="120" placeholder="Июл 1, 2026 - Авг 31, 2026" required></label>
+                  <label><span>Изображение</span><input type="text" name="imageUrl" maxlength="500" value="assets/offer-crm.jpg" required></label>
+                  <label><span>Описание</span><textarea name="description" rows="5" minlength="10" maxlength="1000" required></textarea></label>
+                  <button class="button primary" type="submit">Добавить акцию</button>
+                  <p class="form-status" data-promotion-status role="status"></p>
+                </form>
+              </section>
+
+              <section class="admin-tool">
+                <div class="admin-tool-head">
+                  <p class="eyebrow">Публикации</p>
+                  <h2>Действующие акции</h2>
+                </div>
+                <ul class="admin-promotion-list" data-admin-promotions></ul>
+                <a class="button secondary compact" href="../akcii/">Открыть страницу акций</a>
+              </section>
+            </div>
+
+            <section class="admin-tool admin-orders-tool">
+              <div class="admin-tool-head">
+                <p class="eyebrow">Продажи</p>
+                <h2>Все заказы</h2>
+              </div>
+              <div class="admin-table-wrap" data-admin-orders-table>
+                <table class="admin-table">
+                  <thead>
+                    <tr><th>Заказ</th><th>Клиент</th><th>Состав</th><th>Позиций</th><th>Сумма</th><th>Статус</th></tr>
+                  </thead>
+                  <tbody data-admin-orders></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <img src="../assets/top_logotype.svg" alt="CYBERTAG">
+        <p>© 2026 ООО «Кибертаг»</p>
+        <div class="social-links">
+          <a href="https://vk.com/cybertag" target="_blank" rel="noreferrer" aria-label="CYBERTAG ВКонтакте"><img src="../assets/social-vk.svg" alt=""></a>
+          <a href="https://www.youtube.com/channel/UCeqk4XzY4pF8dvOVTSGVkKw" target="_blank" rel="noreferrer" aria-label="CYBERTAG YouTube"><img src="../assets/social-yt.svg" alt=""></a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="../script.js?v=20260630-1"></script>
+  </body>
+</html>

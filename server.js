@@ -8,20 +8,26 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import {
+  createOrderForUser,
+  createPromotion,
   createSession,
   deleteSession,
   findUserByIdentity,
   getDatabaseStats,
   getUserBySession,
   initializeDatabase,
+  listAdminOrders,
+  listPromotions,
   markLogin,
   registerUser,
+  updateOrderStatus,
 } from "./src/database.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const sessionCookie = "cybertag_session";
 const sessionDays = Math.max(1, Number(process.env.SESSION_DAYS || 7));
 const sessionMaxAge = sessionDays * 24 * 60 * 60 * 1000;
+const orderStatuses = new Set(["new", "processing", "shipped", "done", "cancelled"]);
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
@@ -51,6 +57,29 @@ const setSession = async (res, userId) => {
 const sessionUser = async (req) => {
   const token = req.cookies[sessionCookie];
   return token ? getUserBySession(hashToken(token)) : null;
+};
+
+const requireUser = async (req, res, next) => {
+  try {
+    const user = await sessionUser(req);
+    if (!user) return res.status(401).json({ error: "Требуется авторизация." });
+    req.authUser = user;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const requireAdmin = async (req, res, next) => {
+  try {
+    const user = await sessionUser(req);
+    if (!user) return res.status(401).json({ error: "Требуется авторизация." });
+    if (user.role !== "admin") return res.status(403).json({ error: "Недостаточно прав." });
+    req.authUser = user;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
 };
 
 const validateRegistration = ({ fullName, username, email, password }) => {
@@ -90,6 +119,14 @@ export const createApp = async () => {
   app.get("/api/health", async (_req, res, next) => {
     try {
       res.json({ status: "ok", database: "Microsoft SQL Server", stats: await getDatabaseStats() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/promotions", async (_req, res, next) => {
+    try {
+      res.json({ promotions: await listPromotions() });
     } catch (error) {
       next(error);
     }
@@ -156,6 +193,76 @@ export const createApp = async () => {
       res.status(204).end();
     } catch (error) {
       next(error);
+    }
+  });
+
+  app.post("/api/orders", requireUser, async (req, res, next) => {
+    try {
+      const items = Array.isArray(req.body.items) ? req.body.items : [];
+      const order = await createOrderForUser({ userId: req.authUser.id, items });
+      return res.status(201).json({ order });
+    } catch (error) {
+      if (error.code === "INVALID_ORDER_ITEMS" || error.code === "CUSTOMER_NOT_FOUND") {
+        return res.status(400).json({ error: error.message });
+      }
+      return next(error);
+    }
+  });
+
+  app.get("/api/admin/orders", requireAdmin, async (_req, res, next) => {
+    try {
+      res.json({ orders: await listAdminOrders() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/admin/orders/:orderId/status", requireAdmin, async (req, res, next) => {
+    try {
+      const orderId = Number(req.params.orderId);
+      const status = String(req.body.status || "").trim();
+      if (!Number.isInteger(orderId) || orderId < 1 || !orderStatuses.has(status)) {
+        return res.status(400).json({ error: "Некорректный номер заказа или статус." });
+      }
+      const order = await updateOrderStatus({ orderId, status });
+      if (!order) return res.status(404).json({ error: "Заказ не найден." });
+      return res.json({ order });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  app.post("/api/admin/promotions", requireAdmin, async (req, res, next) => {
+    try {
+      const title = String(req.body.title || "").trim();
+      const description = String(req.body.description || "").trim();
+      const dateLabel = String(req.body.dateLabel || "").trim();
+      const imageUrl = String(req.body.imageUrl || "assets/offer-crm.jpg").trim();
+      const imageIsAllowed = /^assets\/[A-Za-z0-9._/-]+$/.test(imageUrl) || /^https:\/\//i.test(imageUrl);
+
+      if (title.length < 3 || title.length > 160) {
+        return res.status(400).json({ error: "Название акции должно содержать от 3 до 160 символов." });
+      }
+      if (description.length < 10 || description.length > 1000) {
+        return res.status(400).json({ error: "Описание акции должно содержать от 10 до 1000 символов." });
+      }
+      if (dateLabel.length < 2 || dateLabel.length > 120) {
+        return res.status(400).json({ error: "Укажите срок действия акции." });
+      }
+      if (!imageIsAllowed || imageUrl.length > 500) {
+        return res.status(400).json({ error: "Укажите HTTPS-ссылку или путь к изображению из assets/." });
+      }
+
+      const promotion = await createPromotion({
+        title,
+        description,
+        dateLabel,
+        imageUrl,
+        userId: req.authUser.id,
+      });
+      return res.status(201).json({ promotion });
+    } catch (error) {
+      return next(error);
     }
   });
 

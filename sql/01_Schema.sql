@@ -121,3 +121,21 @@ BEGIN
   CREATE INDEX IX_Sessions_ExpiresAt ON dbo.Sessions(ExpiresAt);
   CREATE INDEX IX_Sessions_UserId ON dbo.Sessions(UserId);
 END;
+
+IF OBJECT_ID(N'dbo.Promotions', N'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.Promotions
+  (
+    PromotionId INT IDENTITY(1,1) CONSTRAINT PK_Promotions PRIMARY KEY,
+    Title NVARCHAR(160) NOT NULL,
+    Description NVARCHAR(1000) NOT NULL,
+    DateLabel NVARCHAR(120) NOT NULL,
+    ImageUrl NVARCHAR(500) NOT NULL CONSTRAINT DF_Promotions_ImageUrl DEFAULT N'assets/offer-crm.jpg',
+    IsActive BIT NOT NULL CONSTRAINT DF_Promotions_IsActive DEFAULT 1,
+    CreatedByUserId INT NULL,
+    CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Promotions_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT FK_Promotions_Users FOREIGN KEY (CreatedByUserId) REFERENCES dbo.Users(UserId)
+  );
+
+  CREATE INDEX IX_Promotions_ActiveCreatedAt ON dbo.Promotions(IsActive, CreatedAt DESC);
+END;

@@ -227,13 +227,159 @@ export const deleteSession = async (tokenHash) => {
     .query("DELETE FROM dbo.Sessions WHERE TokenHash = @tokenHash");
 };
 
+const mapPromotion = (row) => ({
+  id: row.PromotionId,
+  title: row.Title,
+  text: row.Description,
+  date: row.DateLabel,
+  image: row.ImageUrl,
+  active: Boolean(row.IsActive),
+  createdAt: row.CreatedAt,
+});
+
+export const listPromotions = async () => {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT PromotionId, Title, Description, DateLabel, ImageUrl, IsActive, CreatedAt
+    FROM dbo.Promotions
+    WHERE IsActive = 1
+    ORDER BY CreatedAt DESC, PromotionId DESC
+  `);
+  return result.recordset.map(mapPromotion);
+};
+
+export const createPromotion = async ({ title, description, dateLabel, imageUrl, userId }) => {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("title", sql.NVarChar(160), title)
+    .input("description", sql.NVarChar(1000), description)
+    .input("dateLabel", sql.NVarChar(120), dateLabel)
+    .input("imageUrl", sql.NVarChar(500), imageUrl)
+    .input("userId", sql.Int, userId)
+    .query(`
+      INSERT INTO dbo.Promotions (Title, Description, DateLabel, ImageUrl, CreatedByUserId)
+      OUTPUT inserted.PromotionId, inserted.Title, inserted.Description, inserted.DateLabel,
+             inserted.ImageUrl, inserted.IsActive, inserted.CreatedAt
+      VALUES (@title, @description, @dateLabel, @imageUrl, @userId)
+    `);
+  return mapPromotion(result.recordset[0]);
+};
+
+export const createOrderForUser = async ({ userId, items }) => {
+  const groupedItems = new Map();
+  for (const item of items) {
+    const title = String(item?.title || "").trim();
+    const qty = Math.max(1, Math.min(20, Number(item?.qty) || 1));
+    if (title) groupedItems.set(title, Math.min(20, (groupedItems.get(title) || 0) + qty));
+  }
+
+  if (!groupedItems.size || groupedItems.size > 20) {
+    const error = new Error("Корзина не содержит допустимых товаров.");
+    error.code = "INVALID_ORDER_ITEMS";
+    throw error;
+  }
+
+  const pool = await getPool();
+  const customer = await pool.request()
+    .input("userId", sql.Int, userId)
+    .query("SELECT CustomerId FROM dbo.Users WHERE UserId = @userId AND IsActive = 1");
+
+  const customerId = customer.recordset[0]?.CustomerId;
+  if (!customerId) {
+    const error = new Error("Для пользователя не найден профиль клиента.");
+    error.code = "CUSTOMER_NOT_FOUND";
+    throw error;
+  }
+
+  const productRequest = pool.request();
+  const parameters = Array.from(groupedItems.keys()).map((title, index) => {
+    const name = `title${index}`;
+    productRequest.input(name, sql.NVarChar(200), title);
+    return `@${name}`;
+  });
+  const products = await productRequest.query(`
+    SELECT ProductId, ProductName
+    FROM dbo.Products
+    WHERE IsActive = 1 AND ProductName IN (${parameters.join(", ")})
+  `);
+
+  if (products.recordset.length !== groupedItems.size) {
+    const error = new Error("Один или несколько товаров больше недоступны.");
+    error.code = "INVALID_ORDER_ITEMS";
+    throw error;
+  }
+
+  const itemsJson = JSON.stringify(products.recordset.map((product) => ({
+    productId: product.ProductId,
+    qty: groupedItems.get(product.ProductName),
+  })));
+  const result = await pool.request()
+    .input("customerId", sql.Int, customerId)
+    .input("itemsJson", sql.NVarChar(sql.MAX), itemsJson)
+    .execute("dbo.pr_CreateOrder");
+
+  const order = result.recordset[0];
+  return {
+    id: order.OrderId,
+    status: order.Status,
+    totalAmount: Number(order.TotalAmount),
+    orderDate: order.OrderDate,
+  };
+};
+
+export const listAdminOrders = async () => {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT o.OrderId, o.OrderDate, o.Status, o.TotalAmount,
+           c.FullName, c.Email,
+           COALESCE(SUM(oi.Qty), 0) AS ItemCount,
+           COALESCE(
+             STRING_AGG(CAST(CONCAT(p.ProductName, N' × ', oi.Qty) AS NVARCHAR(MAX)), N', '),
+             N''
+           ) AS Items
+    FROM dbo.Orders AS o
+    INNER JOIN dbo.Customers AS c ON c.CustomerId = o.CustomerId
+    LEFT JOIN dbo.OrderItems AS oi ON oi.OrderId = o.OrderId
+    LEFT JOIN dbo.Products AS p ON p.ProductId = oi.ProductId
+    GROUP BY o.OrderId, o.OrderDate, o.Status, o.TotalAmount, c.FullName, c.Email
+    ORDER BY o.OrderDate DESC, o.OrderId DESC
+  `);
+  return result.recordset.map((row) => ({
+    id: row.OrderId,
+    orderDate: row.OrderDate,
+    status: row.Status,
+    totalAmount: Number(row.TotalAmount),
+    customerName: row.FullName,
+    customerEmail: row.Email,
+    itemCount: Number(row.ItemCount),
+    items: row.Items,
+  }));
+};
+
+export const updateOrderStatus = async ({ orderId, status }) => {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("orderId", sql.Int, orderId)
+    .input("status", sql.NVarChar(20), status)
+    .query(`
+      UPDATE dbo.Orders
+      SET Status = @status
+      OUTPUT inserted.OrderId, inserted.Status
+      WHERE OrderId = @orderId
+    `);
+  const row = result.recordset[0];
+  return row ? { id: row.OrderId, status: row.Status } : null;
+};
+
 export const getDatabaseStats = async () => {
   const pool = await getPool();
   const result = await pool.request().query(`
     SELECT
       (SELECT COUNT(*) FROM dbo.Users) AS Users,
       (SELECT COUNT(*) FROM dbo.Sessions WHERE ExpiresAt > SYSUTCDATETIME()) AS ActiveSessions,
-      (SELECT COUNT(*) FROM dbo.Products) AS Products
+      (SELECT COUNT(*) FROM dbo.Products) AS Products,
+      (SELECT COUNT(*) FROM dbo.Orders) AS Orders,
+      (SELECT COUNT(*) FROM dbo.Promotions WHERE IsActive = 1) AS Promotions
   `);
   return result.recordset[0];
 };

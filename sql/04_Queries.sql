@@ -39,3 +39,19 @@ SELECT * FROM dbo.vw_OrderSummary WHERE CustomerId = @CustomerId ORDER BY OrderD
 
 -- 10. Состав заказа
 SELECT * FROM dbo.vw_OrderDetails WHERE OrderId = @OrderId ORDER BY ItemId;
+
+-- 11. Все заказы для администратора
+SELECT * FROM dbo.vw_OrderSummary ORDER BY OrderDate DESC, OrderId DESC;
+
+-- 12. Изменение статуса заказа администратором
+UPDATE dbo.Orders SET Status = @Status WHERE OrderId = @OrderId;
+
+-- 13. Действующие акции
+SELECT PromotionId, Title, Description, DateLabel, ImageUrl, CreatedAt
+FROM dbo.Promotions
+WHERE IsActive = 1
+ORDER BY CreatedAt DESC, PromotionId DESC;
+
+-- 14. Добавление акции администратором
+INSERT INTO dbo.Promotions (Title, Description, DateLabel, ImageUrl, CreatedByUserId)
+VALUES (@Title, @Description, @DateLabel, @ImageUrl, @UserId);
