@@ -436,6 +436,15 @@ const formatDate = (value) => new Intl.DateTimeFormat("ru-RU", {
   dateStyle: "medium",
   timeStyle: "short"
 }).format(new Date(value));
+const formatPromotionDate = (value) => new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC"
+}).format(new Date(`${value}T00:00:00Z`));
+const formatPromotionDateRange = (startDate, endDate) => startDate === endDate
+  ? formatPromotionDate(startDate)
+  : `${formatPromotionDate(startDate)} - ${formatPromotionDate(endDate)}`;
 const escapeHtml = (value) => String(value)
   .replaceAll("&", "&amp;")
   .replaceAll("<", "&lt;")
@@ -874,10 +883,29 @@ const setupAdmin = async () => {
   const promotionForm = document.querySelector("[data-promotion-form]");
   const promotionStatus = document.querySelector("[data-promotion-status]");
   const ordersTable = document.querySelector("[data-admin-orders-table]");
+  const startDateInput = promotionForm?.elements.startDate;
+  const endDateInput = promotionForm?.elements.endDate;
+
+  const syncPromotionDateRange = () => {
+    if (!startDateInput || !endDateInput) return;
+    endDateInput.min = startDateInput.value;
+    endDateInput.setCustomValidity(
+      startDateInput.value && endDateInput.value && endDateInput.value < startDateInput.value
+        ? "Дата окончания не может быть раньше даты начала."
+        : ""
+    );
+  };
+
+  startDateInput?.addEventListener("change", syncPromotionDateRange);
+  endDateInput?.addEventListener("change", syncPromotionDateRange);
 
   promotionForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    syncPromotionDateRange();
+    if (!promotionForm.reportValidity()) return;
     const data = new FormData(promotionForm);
+    const startDate = String(data.get("startDate"));
+    const endDate = String(data.get("endDate"));
     if (promotionStatus) {
       promotionStatus.textContent = "";
       promotionStatus.classList.remove("success");
@@ -889,7 +917,7 @@ const setupAdmin = async () => {
         body: JSON.stringify({
           title: String(data.get("title")).trim(),
           description: String(data.get("description")).trim(),
-          dateLabel: String(data.get("dateLabel")).trim(),
+          dateLabel: formatPromotionDateRange(startDate, endDate),
           imageUrl: String(data.get("imageUrl")).trim()
         })
       });

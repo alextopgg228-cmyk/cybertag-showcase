@@ -6,7 +6,7 @@
     <title>Управление CYBERTAG</title>
     <meta name="description" content="Управление заказами и акциями CYBERTAG.">
     <link rel="icon" href="../assets/top_logotype.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles.css?v=20260630-2">
+    <link rel="stylesheet" href="../styles.css?v=20260702-1">
   </head>
   <body data-root="../">
     <header class="site-header">
@@ -45,7 +45,10 @@
                 </div>
                 <form class="admin-form" data-promotion-form>
                   <label><span>Название</span><input type="text" name="title" minlength="3" maxlength="160" required></label>
-                  <label><span>Срок действия</span><input type="text" name="dateLabel" maxlength="120" placeholder="Июл 1, 2026 - Авг 31, 2026" required></label>
+                  <div class="admin-date-range">
+                    <label><span>Дата начала</span><input type="date" name="startDate" required></label>
+                    <label><span>Дата окончания</span><input type="date" name="endDate" required></label>
+                  </div>
                   <label><span>Изображение</span><input type="text" name="imageUrl" maxlength="500" value="assets/offer-crm.jpg" required></label>
                   <label><span>Описание</span><textarea name="description" rows="5" minlength="10" maxlength="1000" required></textarea></label>
                   <button class="button primary" type="submit">Добавить акцию</button>
@@ -93,6 +96,6 @@
       </div>
     </footer>
 
-    <script src="../script.js?v=20260630-2"></script>
+    <script src="../script.js?v=20260702-1"></script>
   </body>
 </html>

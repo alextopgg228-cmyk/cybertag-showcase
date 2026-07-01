@@ -130,6 +130,9 @@ test("registration, orders and administrator workflow", async (t) => {
 
   const adminPageResponse = await fetch(`${baseUrl}/admin/`, { headers: { Cookie: adminCookie } });
   assert.equal(adminPageResponse.status, 200);
+  const adminPageHtml = await adminPageResponse.clone().text();
+  assert.match(adminPageHtml, /type="date" name="startDate"/);
+  assert.match(adminPageHtml, /type="date" name="endDate"/);
   assert.match(await adminPageResponse.text(), /Панель администратора/);
 
   const ordersResponse = await fetch(`${baseUrl}/api/admin/orders`, {
